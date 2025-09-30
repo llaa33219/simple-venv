@@ -45,22 +45,34 @@ wget -O ~/s-venv.sh https://raw.githubusercontent.com/llaa33219/simple-venv/refs
 
 
 **Create a new environment**
+```
 ~/s-venv.sh create test1
+```
 
 **Activate the environment**
+```
 ~/s-venv.sh enter test1
+```
 
 **List all environments**
+```
 ~/s-venv.sh list
+```
 
-# Copy an environment
+**Copy an environment**
+```
 ~/s-venv.sh copy test1 test1-backup
+```
 
-# Reset an environment
+**Reset an environment**
+```
 ~/s-venv.sh reset test1
+```
 
-# Remove an environment
+**Remove an environment**
+```
 ~/s-venv.sh remove test1
+```
 
 
 ## Requirements
