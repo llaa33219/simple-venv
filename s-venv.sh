@@ -229,7 +229,7 @@ list_venv() {
             if [ -f "$dir/bin/python" ]; then
                 python_version=$("$dir/bin/python" --version 2>&1 | cut -d' ' -f2)
             fi
-            echo "  - $name ${GREEN}[Python $python_version]${NC}"
+            echo -e "  - $name ${GREEN}[Python $python_version]${NC}"
         fi
     done
 }
