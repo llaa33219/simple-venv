@@ -2,6 +2,7 @@
 
 # Simple Virtual Environment Manager
 # Manages Python virtual environments in ~/simple-venv/
+# Supports bash, zsh, and fish shells
 
 VENV_DIR="$HOME/simple-venv"
 
@@ -14,11 +15,71 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Detect current shell
+detect_shell() {
+    # Check SHELL environment variable
+    local shell_path="${SHELL:-/bin/bash}"
+    local shell_name=$(basename "$shell_path")
+    
+    # If run from within a shell, try to detect it
+    if [ -n "$FISH_VERSION" ]; then
+        echo "fish"
+    elif [ -n "$ZSH_VERSION" ]; then
+        echo "zsh"
+    elif [ -n "$BASH_VERSION" ]; then
+        echo "bash"
+    else
+        # Fallback to SHELL variable
+        case "$shell_name" in
+            fish)
+                echo "fish"
+                ;;
+            zsh)
+                echo "zsh"
+                ;;
+            *)
+                echo "bash"
+                ;;
+        esac
+    fi
+}
+
+# Get shell config file
+get_shell_config() {
+    local shell_type=$1
+    case "$shell_type" in
+        fish)
+            echo "$HOME/.config/fish/config.fish"
+            ;;
+        zsh)
+            echo "$HOME/.zshrc"
+            ;;
+        bash)
+            echo "$HOME/.bashrc"
+            ;;
+    esac
+}
+
+# Get activate script path
+get_activate_script() {
+    local venv_path=$1
+    local shell_type=$2
+    
+    case "$shell_type" in
+        fish)
+            echo "$venv_path/bin/activate.fish"
+            ;;
+        *)
+            echo "$venv_path/bin/activate"
+            ;;
+    esac
+}
+
 # Help function
 show_help() {
     echo "Simple Virtual Environment Manager"
     echo ""
-    echo "Usage: ~/s-venv.sh [command] [arguments]"
+    echo "Usage: s-venv [command] [arguments]"
     echo ""
     echo "Commands:"
     echo "  create <name>              Create a new virtual environment"
@@ -30,6 +91,7 @@ show_help() {
     echo "  help                       Show this help message"
     echo ""
     echo "Virtual environments are stored in: $VENV_DIR"
+    echo "Detected shell: $(detect_shell)"
 }
 
 # Create venv
@@ -52,7 +114,7 @@ create_venv() {
     
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}Successfully created virtual environment '$name'${NC}"
-        echo "To activate: ~/s-venv.sh enter $name"
+        echo "To activate: s-venv enter $name"
     else
         echo -e "${RED}Failed to create virtual environment${NC}"
         return 1
@@ -76,18 +138,47 @@ enter_venv() {
         return 1
     fi
     
-    local activate_script="$venv_path/bin/activate"
+    local shell_type=$(detect_shell)
+    local activate_script=$(get_activate_script "$venv_path" "$shell_type")
+    
     if [ ! -f "$activate_script" ]; then
-        echo -e "${RED}Error: Activation script not found${NC}"
+        echo -e "${RED}Error: Activation script not found for $shell_type${NC}"
+        echo "Expected: $activate_script"
         return 1
     fi
     
-    echo -e "${GREEN}Entering virtual environment '$name'${NC}"
-    echo "To activate, run:"
+    echo -e "${GREEN}Entering virtual environment '$name' (shell: $shell_type)${NC}"
+    echo "To activate manually, run:"
     echo "  source $activate_script"
     echo ""
-    echo "Or start a new shell with the environment activated:"
-    bash --rcfile <(echo ". $HOME/.bashrc; source $activate_script; echo -e '${GREEN}Virtual environment \"$name\" activated${NC}'")
+    echo "Starting new shell with environment activated..."
+    
+    case "$shell_type" in
+        fish)
+            local config_file=$(get_shell_config "$shell_type")
+            if [ -f "$config_file" ]; then
+                fish -C "source $config_file" -C "source $activate_script" -C "echo -e '${GREEN}Virtual environment \"$name\" activated${NC}'"
+            else
+                fish -C "source $activate_script" -C "echo -e '${GREEN}Virtual environment \"$name\" activated${NC}'"
+            fi
+            ;;
+        zsh)
+            local config_file=$(get_shell_config "$shell_type")
+            if [ -f "$config_file" ]; then
+                zsh -c "source $config_file; source $activate_script; echo -e '${GREEN}Virtual environment \"$name\" activated${NC}'; exec zsh"
+            else
+                zsh -c "source $activate_script; echo -e '${GREEN}Virtual environment \"$name\" activated${NC}'; exec zsh"
+            fi
+            ;;
+        bash)
+            local config_file=$(get_shell_config "$shell_type")
+            if [ -f "$config_file" ]; then
+                bash --rcfile <(echo ". $config_file; source $activate_script; echo -e '${GREEN}Virtual environment \"$name\" activated${NC}'")
+            else
+                bash --rcfile <(echo "source $activate_script; echo -e '${GREEN}Virtual environment \"$name\" activated${NC}'")
+            fi
+            ;;
+    esac
 }
 
 # Reset venv
@@ -259,7 +350,7 @@ case "$1" in
         ;;
     *)
         echo -e "${RED}Error: Unknown command '$1'${NC}"
-        echo "Use '~/s-venv.sh help' for usage information"
+        echo "Use 's-venv help' for usage information"
         exit 1
         ;;
 esac
